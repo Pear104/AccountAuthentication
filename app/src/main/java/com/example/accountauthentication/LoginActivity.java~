@@ -83,13 +83,7 @@ public class LoginActivity extends AppCompatActivity {
         if (result != null && result.getCredential() != null) {
             Object credential = result.getCredential();
 
-            if (credential instanceof PublicKeyCredential) {
-                PublicKeyCredential publicKeyCredential = (PublicKeyCredential) credential;
-                // Handle public key credential
-            } else if (credential instanceof PasswordCredential) {
-                PasswordCredential passwordCredential = (PasswordCredential) credential;
-                // Handle password credential
-            }
+
 
             if (credential instanceof CustomCredential) {
                 CustomCredential customCredential = (CustomCredential) credential;
