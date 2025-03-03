@@ -2,90 +2,90 @@ package com.example.accountauthentication;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.os.CancellationSignal;
 import android.util.Log;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
-import androidx.credentials.ClearCredentialStateRequest;
-import androidx.credentials.CredentialManager;
-import androidx.credentials.CredentialManagerCallback;
-import androidx.credentials.exceptions.ClearCredentialException;
 
 import com.bumptech.glide.Glide;
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInClient;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.firebase.auth.EmailAuthProvider;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.auth.GoogleAuthProvider;
+import com.google.firebase.auth.UserInfo;
 
-import java.util.concurrent.Executors;
-
-import kotlin.coroutines.Continuation;
-import kotlin.coroutines.CoroutineContext;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
-    private TextView emailTextView;
-    private TextView nameTextView;
-    private ImageView avatarImageView;
-    private Button logoutButton;
-    private CredentialManager credentialManager;
-    private String TAG = "LOGIN";
+
+    static FirebaseAuth mAuth;
+    private GoogleSignInClient mGoogleSignInClient;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Initialize views
-        credentialManager = CredentialManager.create(this);
-        emailTextView = findViewById(R.id.emailTextView);
-        nameTextView = findViewById(R.id.nameTextView);
-        avatarImageView = findViewById(R.id.avatarImageView);
-        logoutButton = findViewById(R.id.logoutButton);
+        mAuth = FirebaseAuth.getInstance();
 
-        // Get user data from intent
-        String email = getIntent().getStringExtra("user_email");
-        String name = getIntent().getStringExtra("user_name");
-        String avatarUrl = getIntent().getStringExtra("user_avatar");
+        Button signOutButton = findViewById(R.id.signOutButton);
+        ImageView userImage = findViewById(R.id.userImage);
+        TextView userName = findViewById(R.id.userName);
 
-        // Display user information
-        emailTextView.setText(email);
-        nameTextView.setText(name);
+        FirebaseUser currentUser = mAuth.getCurrentUser();
+        GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestIdToken("YOUR_WEB_CLIENT_ID") // Thay bằng ID từ google-services.json
+                .requestEmail()
+                .build();
+        mGoogleSignInClient = GoogleSignIn.getClient(MainActivity.this, gso);
 
-        // Load avatar image using Glide
-        if (avatarUrl != null && !avatarUrl.isEmpty()) {
-            Glide.with(this)
-                    .load(avatarUrl)
-                    .circleCrop()
-                    .into(avatarImageView);
+        if (currentUser != null) {
+            if (currentUser.getPhotoUrl() != null) {
+                userName.setText("Name: " + currentUser.getDisplayName());
+                Glide.with(this)
+                        .load(currentUser.getPhotoUrl())
+                        .circleCrop()
+                        .into(userImage);
+            } else if (currentUser.getEmail() != null) {
+                userName.setText("Name: " + currentUser.getEmail());
+            } else {
+                userName.setText("Name: " + currentUser.getPhoneNumber());
+            }
         }
 
-        // Set up logout button
-        logoutButton.setOnClickListener(v -> performLogout());
+        signOutButton.setOnClickListener(v -> {
+            signOut();
+        });
     }
 
-    private void performLogout() {
-        ClearCredentialStateRequest clearRequest = new ClearCredentialStateRequest();
-        credentialManager.clearCredentialStateAsync(
-                clearRequest,
-                new CancellationSignal(),
-                Executors.newSingleThreadExecutor(),
-                new CredentialManagerCallback<Void, ClearCredentialException>() {
-                    @Override
-                    public void onResult(@NonNull Void result) {
-                        Intent intent = new Intent(MainActivity.this, LoginActivity.class);
-                        startActivity(intent);
-                        finish();
-                    }
+    private void signOut() {
+        mAuth.signOut(); // Đăng xuất khỏi Firebase
+        // Đăng xuất tài khoản khỏi thiết bị
+        mGoogleSignInClient.signOut().addOnCompleteListener(task -> {
+        });
+        // Chuyển hướng về màn hình đăng nhập
+        Intent intent = new Intent(MainActivity.this, SignInActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
+    }
 
-                    @Override
-                    public void onError(@NonNull ClearCredentialException e) {
-                        Log.e(TAG, "Couldn't clear user credentials: " + e.getLocalizedMessage());
-                    }
-                });
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (mAuth.getCurrentUser() == null) {
+            Intent intent = new Intent(MainActivity.this, SignInActivity.class);
+            startActivity(intent);
+        }
     }
 }
